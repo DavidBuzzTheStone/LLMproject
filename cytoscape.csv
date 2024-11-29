@@ -1,0 +1,16 @@
+Source,Target,Interaction,Weight
+I1,II1,directed,1
+I1,II3,directed,1
+II1,II2,directed,-1
+II1,III1,directed,1
+II2,III3,directed,-1
+II2,III2,directed,1
+II2,III4,directed,1
+III3,III4,directed,-1
+III3,IV1,directed,1
+IV1,III1,directed,-1
+III2,I1,directed,-1
+II3,III3,directed,1
+I2,II2,directed,-1
+I2,II1,directed,1
+I2,III1,directed,1

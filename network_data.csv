@@ -1,0 +1,13 @@
+source,target,interaction,weight
+II1,I1,inhibition,1
+II2,II1,inhibition,-1
+III3,II2,inhibition,-1
+III4,II2,inhibition,1
+III4,III3,inhibition,-1
+IV1,III3,inhibition,1
+III1,II1,inhibition,1
+III1,IV1,inhibition,-1
+III1,I2,inhibition,1
+II3,I1,inhibition,1
+II2,I2,inhibition,-1
+III3,II3,inhibition,1

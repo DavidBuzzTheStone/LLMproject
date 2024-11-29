@@ -1,0 +1,35 @@
+SOX2:
+you are a helpful assistant:                                                            stimulates: POU5F1 NANOG SOX21 PAX6 NESTIN DCX ASCL1 NEUROG1 NEUROD1 inhibits: CDKN1A P53
+you are an expert in molecular biology:                                                 stimulates: OCT4 NANOG PAX6 NESTIN SOX21 FGFR1 REST SALL4 ZIC2 ZIC3 inhibits: CDKN1A PUMA GATA6
+You are a molecular biology and genomics expert specialized in human gene regulation.:  stimulates: POU5F1 NANOG SOX21 PAX6 NESTIN DCX ASCL1 NEUROG1 NEUROD1 FGFR1 inhibits: CDKN1A CDKN1B PAX3 REST
+you are a dog:                                                                          stimulates: POU5F1 NANOG SOX21 PAX6 NESTIN DCX ASCL1 NEUROG1 NEUROD1 FGFR1 inhibits: CDKN1A CDKN2A REST
+
+
+SOX9:
+you are a helpful assistant:                                                            stimulates: SOX5 SOX6 COL2A1 ACAN GAD1 GAD2 GLI1 GLI2 GLI3 inhibits: WNT4 WNT5A
+you are an expert in molecular biology:                                                 stimulates: COL2A1 ACAN SOX5 SOX6 GDF5 MATN1 MATN3 FGFR3 WNT11 HES5 inhibits: WNT4
+You are a molecular biology and genomics expert specialized in human gene regulation.:  stimulates: COL2A1 ACAN SOX5 SOX6 GDF5 FGFR3 MATN1 COMP TIMP3 inhibits: RUNX2 WNT5A
+you are a dog:                                                                          stimulates: SOX10 COL2A1 ACAN GDNF WNT5A FGFR3 inhibits: WNT4
+
+
+MYC:
+you are a helpful assistant:                                                             stimulates: CCND1 CDK4 E2F1 LDHA ODC1 SLC2A1 TERT inhibits: CDKN1A CDKN2B GADD45A PTEN THBS1
+you are an expert in molecular biology:                                                  stimulates: CCND1 CDK4 E2F1 LDHA ODC1 SLC2A1 VEGFA inhibits: CDKN1A CDKN2B PTEN GADD45A GADD45G
+You are a molecular biology and genomics expert specialized in human gene regulation.:   stimulates: CCND1 CDK4 E2F1 LDHA ODC1 SLC2A1 inhibits: CDKN1A CDKN2B GADD45A PTEN THBS1
+you are a dog: I'm here to help, but I can't fetch specific gene lists or detailed scientific data like downstream targets of MYC in the human brain. For accurate and detailed information, I recommend consulting scientific databases like PubMed, GeneCards, or specialized resources.
+
+
+TGF BETA:
+you are a helpful assistant:                                                                    stimulates: SMAD2 SMAD3 SMAD4 SERPINE1 CTGF TGFB1 COL1A1 COL3A1 FN1 inhibits: BMP7 MYC
+you are an expert in molecular biology:                                                         stimulates: SMAD2 SMAD3 SMAD4 SERPINE1 CTGF COL1A1 COL3A1 FN1 PAI-1 TIMP1 VEGFA TGFBI ID1 ID2 ID3 JUN MYC inhibits: BMP7 MYOD1 E2F1
+You are a molecular biology and genomics expert specialized in human gene regulation.:          stimulates: SMAD2 SMAD3 SMAD4 SERPINE1 CTGF COL1A1 COL3A1 FN1 PAI1 VEGFA NRP1 ID1 ID2 ID3 JUN MYC inhibits: BMP4 BMP7 MYOD1 E2F1 CCND1
+you are a dog:                                                                                  stimulates: TGFB1 TGFB2 TGFB3 SMAD2 SMAD3 SMAD4 SERPINE1 CTGF COL1A1 COL3A1 FN1 PAI1 inhibits: BMP4 BMP7 MYC
+
+
+RB:
+you are a helpful assistant: stimulates: E2F4 E2F5 inhibits: E2F1 E2F2 E2F3 E2F6 E2F7 E2F8
+you are an expert in molecular biology: stimulates: E2F7 E2F8 inhibits: E2F1 E2F2 E2F3 E2F4 E2F5 E2F6 CCNE1 CCNE2 CCNA2 CDK1 CDK2 MCM2 MCM3 MCM4 MCM5 MCM6 MCM7 PCNA CDC6 CDC25A SKP2
+You are a molecular biology and genomics expert specialized in human gene regulation.: stimulates: E2F7 E2F8 inhibits: E2F1 E2F2 E2F3 E2F4 E2F5 E2F6
+you are a dog: I'm unable to provide a specific list of downstream targets of RB (Retinoblastoma protein) in the human brain as it requires detailed and specific experimental data. Please consult a specialized database or scientific literature for accurate information.
+
+
