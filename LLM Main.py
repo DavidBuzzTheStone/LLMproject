@@ -1,4 +1,5 @@
-from get_response import get_response, results_to_dictionary, supervisor_query_expander
+from get_response import get_response, results_to_dictionary, supervisor_query_expander, gene_query_with_format_check, \
+  default_query_with_supervisions
 import pandas as pd
 import py4cytoscape as p4c
 import numpy as np
@@ -7,22 +8,24 @@ import json
 from typing import TextIO
 import ast
 
-
-def default_gene_query(gene_name: str):
-  return get_response(
-    role="You are an expert in molecular biology and genomics of human brain",
-    prompt = f"""
-  List all known downstream targets of {gene_name}.
-  Organism: homo sapiens. Tissue: brain.
-  Use the following format: "stimulates: [gene names], inhibits: [gene names]" separated by spaces.
-  If there is no downstream target, answer "none". 
-  Don't say anything else.
-""",
-    model = "chatgpt-4o-latest",
-  )
-
 #
 # print(f"non_expander: {supervisor_query_non_expander("MYC", false_response, 5)}")
+
+def save_results(dict_dict: dict[str, dict], inputs: dict[str, dict] | list[str] = None, ):
+  try:
+    with open('output.json', 'r') as json_file:
+      json_dict = json.load(json_file)
+  except FileNotFoundError:
+    json_dict = {}
+  json_dict.update({k: v for k, v in dict_dict.items() if v})
+  with open('output.json', 'w') as json_file:
+    json.dump(json_dict, json_file, indent=4)
+#   # with open('saved_results.txt', 'a') as file:  # Write the string to the file
+#   #     file.write(f"input: {inputs}: \nresults dict_dict: {dict_dict}")
+#   #     file.write("\n\n")
+#   #     file.close()
+#   return dict_dict
+
 
 def depth_reducer(gene: str, dict_dict: dict[str, Optional[dict]], depth_tree: dict[str, int], starting_depth: int, max_depth: int, network_builder_func: callable, query_func: callable):
   if starting_depth < max_depth:
@@ -38,7 +41,7 @@ def depth_reducer(gene: str, dict_dict: dict[str, Optional[dict]], depth_tree: d
         dict_dict.update(network_builder_func(dict_dict, max_depth, depth_tree, starting_depth + 1, query_func))
         depth_tree.update({g: starting_depth + 1 for g in list(dict_dict.keys()) if g not in depth_tree})
 
-def network_builder(input_genes: dict[str, Optional[dict]] | list[str], max_depth: int, input_depth_tree: dict[str, int]=None ,current_depth: int = 1, query_func: callable(str) = default_gene_query):
+def network_builder(input_genes: dict[str, Optional[dict]] | list[str], max_depth: int, input_depth_tree: dict[str, int]=None ,current_depth: int = 1, query_func: callable(str) = gene_query_with_format_check):
   print(f"network builder called, depth: {current_depth}")
   if type(input_genes) is list:
     dict_dict: dict[str, Optional[dict]] = {k: None for k in input_genes}
@@ -54,19 +57,7 @@ def network_builder(input_genes: dict[str, Optional[dict]] | list[str], max_dept
   for gene in gene_list:
     if gene not in list(depth_tree.keys()) or depth_tree[gene] == current_depth:
       print(f'processing {gene}, depth: {depth_tree}')
-      try:
-        with open('output.json', 'r') as json_file:
-          json_dict = json.load(json_file)
-          if gene in json_dict:
-            response = json_dict[gene]
-          else:
-            response = query_func(gene)
-      except FileNotFoundError:
-        response = query_func(gene)
-      if type(response) is dict:
-        results_dict = response
-      else:
-        results_dict = results_to_dictionary(query_func(gene))
+      results_dict = query_func(gene)
       if results_dict:
         dict_dict[gene] = results_dict
         for key in results_dict.keys():
@@ -152,22 +143,6 @@ def cytoscape_visualizer(starting_genes: list[str], dict_dict: dict[str, dict]):
   except Exception as e:
     print(f"Error: {e}")
 
-def save_results(inputs: dict[str, dict] | list[str], dict_dict: dict[str, dict]):
-  try:
-    with open('output.json', 'r') as json_file:
-      json_dict = json.load(json_file)
-  except FileNotFoundError: json_dict = {}
-  json_dict.update({k: v for k, v in json.didict_dict.items() if v})
-  with open('output.json', 'w') as json_file:
-    json.dump(json_dict, json_file, indent=4)
-
-  with open('saved_results.txt', 'a') as file:  # Write the string to the file
-      file.write(f"input: {inputs}: \nresults dict_dict: {dict_dict}")
-      file.write("\n\n")
-      file.close()
-  return dict_dict
-
-
 def load_results(inputs: dict[str, dict] | list[str], filename: str = 'saved_results.txt'):
   with open(filename, 'r') as file:
     content = file.read()
@@ -185,15 +160,10 @@ def load_results(inputs: dict[str, dict] | list[str], filename: str = 'saved_res
   return None
 
 def full_workflow(input_genes: list[str], max_depth: int, number_of_supervisions: int = 5, generate_cytoscape: bool = True, generate_matrix: bool = True):
-  call = save_results(
-    inputs=input_genes,
-    dict_dict=network_builder(
+  call = network_builder(
       input_genes=input_genes,
       max_depth=max_depth,
-      query_func= lambda gene_x: supervisor_query_expander(
-        gene_name=gene_x, response=default_gene_query(gene_x),
-        number_of_supervisions=number_of_supervisions)
-    )
+      query_func= lambda gene_x: default_query_with_supervisions(gene_x, number_of_supervisions)
   )
   if generate_cytoscape:
     cytoscape_visualizer(
@@ -203,13 +173,5 @@ def full_workflow(input_genes: list[str], max_depth: int, number_of_supervisions
   if generate_matrix:
     matrix_builder(call).to_csv("matrix_output.csv", index=True)
 
-input_genes = ["SOX2", "SOX9" ]
-
-try:
-  with open('output.json', 'r') as json_file:
-    json_dict = json.load(json_file)
-    print(json_dict["SOX9"]["ACAN"])
-    if "SOX4" in json_dict:
-      print(json_dict["SOX4"])
-except FileNotFoundError:
-  None
+input_genes_x = ["SOX9", "SOX2", "MYC" ]
+full_workflow(input_genes_x, 2)

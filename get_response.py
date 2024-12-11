@@ -1,9 +1,13 @@
+import json
+
 from openai import OpenAI, default_query
 
 from format_checker import check_format
 
 api_key = "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"
 client = OpenAI(api_key=api_key)
+
+main_model = "chatgpt-4o-latest"
 
 def get_response(
         role: str,
@@ -28,10 +32,35 @@ def get_response(
     )
   return response.choices[0].message.content
 
+def default_gene_query(gene_name: str):
+  return get_response(
+    role="You are an expert in molecular biology and genomics of human brain",
+    prompt = f"""
+  List all known downstream targets of {gene_name}.
+  Organism: homo sapiens. Tissue: brain.
+  Use the following format: "stimulates: [gene names], inhibits: [gene names]" separated by spaces.
+  If there is no downstream target, answer "none". 
+  Don't say anything else.
+""",
+    model = main_model,
+  )
+
+def gene_query_with_format_check(gene_name: str):
+  return check_format(
+    input_string=default_gene_query(gene_name),
+    on_wrong=lambda: check_format(
+      input_string=default_gene_query(gene_name),
+      on_wrong=lambda: check_format(
+        input_string=default_gene_query(gene_name),
+        on_wrong=None
+      )
+    )
+  )
+
 def results_to_dictionary(results: str):
   print(results)
   dictionary = {}
-  if results == "none":
+  if results.lower() == "none":
     return dictionary
   else:
     split_results = results.split("inhibits:")
@@ -39,11 +68,11 @@ def results_to_dictionary(results: str):
     inhibited_targets = split_results[1].split(" ")
 
     for inhibited_target in inhibited_targets:
-      if inhibited_target not in dictionary and inhibited_target != '' and inhibited_target != "none":
+      if inhibited_target not in dictionary and inhibited_target != '' and inhibited_target.lower() != "none":
         dictionary[inhibited_target.upper()] = -1
 
     for activated_target in activated_targets:
-      if activated_target not in dictionary and activated_target != '' and activated_target != "none":
+      if activated_target not in dictionary and activated_target != '' and activated_target.lower() != "none":
         dictionary[activated_target.upper()] = 1
     return dictionary
 
@@ -67,7 +96,7 @@ def supervisor_call(gene_name: str, response: str):
     prompt=f"""
       response given by student: {response} 
     """,
-    model="chatgpt-4o-latest",
+    model=main_model,
   )
 
 
@@ -79,14 +108,53 @@ def supervisor_query_expander(gene_name: str, response: str, number_of_supervisi
 
    return check_format(
      input_string=supervisor_call(gene_name, new_response),
-     on_wrong= check_format(
+     on_wrong= lambda: check_format(
        input_string=supervisor_call(gene_name, new_response),
-       on_wrong =check_format(
+       on_wrong = lambda: check_format(
          input_string=supervisor_call(gene_name, new_response),
          on_wrong=None
        )
      )
    )
+
+
+def save_results(input_gene: str, interaction_dict: dict[str, int]):
+  try:
+    with open('output.json', 'r') as json_file:
+      json_dict = json.load(json_file)
+  except FileNotFoundError:
+    json_dict = {}
+  json_dict[input_gene] = interaction_dict
+  with open('output.json', 'w') as json_file:
+    json.dump(json_dict, json_file, indent=4)
+
+
+##Checks saved gene data and adds new genes to the saves if the number_of_supervisions is at least 4
+def default_query_with_supervisions(gene: str, number_of_supervisions: int = 1):
+  from_json = False
+  try:
+    with open('output.json', 'r') as json_file:
+      json_dict = json.load(json_file)
+      if gene in json_dict:
+        result_dict = json_dict[gene]
+        from_json = True
+      else:
+        response = gene_query_with_format_check(gene)
+  except FileNotFoundError:
+    response = gene_query_with_format_check(gene)
+
+  if not from_json:
+    result_dict = results_to_dictionary(supervisor_query_expander(gene, response, number_of_supervisions))
+    save_results(gene, result_dict)
+  return result_dict
+
+
+print(
+  get_response(
+    role = "news reporter",
+    prompt = "What is the current date?"
+  )
+)
 
 
 # def response_binder(resp1: str, resp2: str):
