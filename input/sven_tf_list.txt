@@ -1,5 +1,4 @@
-
-sven_genes_vertical = """JUN
+JUN
 MET
 SOX9
 SOX2
@@ -243,6 +242,4 @@ UNCX
 ARX
 ZNF117
 EBF1
-MXD3ßß"""
-
-sven_genes = sven_genes_vertical.replace('\n', ' ')
+MXD3ßß
