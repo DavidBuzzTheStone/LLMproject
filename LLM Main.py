@@ -1,3 +1,5 @@
+import random
+
 from get_response import get_response, results_to_dictionary, supervisor_query_expander, gene_query_with_format_check, \
   default_query_with_supervisions
 import pandas as pd
@@ -7,6 +9,11 @@ from typing import Optional
 import json
 from typing import TextIO
 import ast
+
+from input.input_data import sven_genes
+from validator import read_tsv
+import matplotlib.pyplot as plt
+from matplotlib_venn import venn2
 
 #
 # print(f"non_expander: {supervisor_query_non_expander("MYC", false_response, 5)}")
@@ -159,11 +166,11 @@ def load_results(inputs: dict[str, dict] | list[str], filename: str = 'saved_res
 
   return None
 
-def full_workflow(input_genes: list[str], max_depth: int, number_of_supervisions: int = 5, generate_cytoscape: bool = True, generate_matrix: bool = True):
+def full_workflow(input_genes: list[str], max_depth: int, max_number_of_supervisions: int = 40, generate_cytoscape: bool = True, generate_matrix: bool = True):
   call = network_builder(
       input_genes=input_genes,
       max_depth=max_depth,
-      query_func= lambda gene_x: default_query_with_supervisions(gene_x, number_of_supervisions)
+      query_func= lambda gene_x: default_query_with_supervisions(gene_x, max_number_of_supervisions)
   )
   if generate_cytoscape:
     cytoscape_visualizer(
@@ -173,5 +180,39 @@ def full_workflow(input_genes: list[str], max_depth: int, number_of_supervisions
   if generate_matrix:
     matrix_builder(call).to_csv("matrix_output.csv", index=True)
 
-input_genes_x = ["SOX9", "SOX2", "MYC" ]
+def validator():
+  tf_list, test_dict = read_tsv('input/trrust_rawdata.human.tsv')
+  test_genes = tf_list.intersection(sven_genes)
+  random_20 = random.sample(list(test_genes), 10)
+
+  llm_dict_dict = network_builder(
+    input_genes=random_20,
+    max_depth=1,
+    query_func=lambda gene_x: default_query_with_supervisions(gene_x)
+  )
+  valid_llm = {k:v for k, v in llm_dict_dict.items() if v is not None}
+  converted_llm_dict = {k: list(v.keys())   for k, v in valid_llm.items()}
+
+  for tf in random_20:
+    llm_set = set(converted_llm_dict[tf])
+    test_set = set(test_dict[tf])
+    intersec = test_set.intersection(llm_set)
+    only_in_llm = set(converted_llm_dict[tf]) - intersec
+    only_in_test = set(test_dict[tf]) - intersec
+    # diagram_data.append([tf, only_in_llm, intersec, only_in_test])
+
+    # Create Venn diagram
+    venn = venn2((llm_set, test_set), ('LLM', 'TRRUST'))
+    if venn.get_label_by_id('10'): venn.get_label_by_id('10').set_text('\n'.join(only_in_llm))
+    if venn.get_label_by_id('01'): venn.get_label_by_id('01').set_text('\n'.join(only_in_test))
+    if venn.get_label_by_id('11'): venn.get_label_by_id('11').set_text('\n'.join(intersec))
+    plt.title(f'Comparison of {tf} Targets')
+    plt.show()
+#
+input_genes_x = random.sample(sven_genes, 10)
 full_workflow(input_genes_x, 2)
+
+
+#Last date: October 21, 2023
+#Gene name synonyms
+

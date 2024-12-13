@@ -1,5 +1,6 @@
 import json
 
+from matplotlib import pyplot as plt
 from openai import OpenAI, default_query
 
 from format_checker import check_format
@@ -38,7 +39,7 @@ def default_gene_query(gene_name: str):
     prompt = f"""
   List all known downstream targets of {gene_name}.
   Organism: homo sapiens. Tissue: brain.
-  Use the following format: "stimulates: [gene names], inhibits: [gene names]" separated by spaces.
+  Use the following format: "stimulates: [gene names], inhibits: [gene names]" with the gene names separated by ';'.
   If there is no downstream target, answer "none". 
   Don't say anything else.
 """,
@@ -63,9 +64,9 @@ def results_to_dictionary(results: str):
   if results.lower() == "none":
     return dictionary
   else:
-    split_results = results.split("inhibits:")
-    activated_targets = split_results[0].removeprefix("stimulates:").split(" ")
-    inhibited_targets = split_results[1].split(" ")
+    split_results = results.replace("; ", ';').split("inhibits:")
+    activated_targets = split_results[0].strip().removeprefix("stimulates:").split(";")
+    inhibited_targets = split_results[1].strip().split(";")
 
     for inhibited_target in inhibited_targets:
       if inhibited_target not in dictionary and inhibited_target != '' and inhibited_target.lower() != "none":
@@ -85,7 +86,7 @@ def supervisor_call(gene_name: str, response: str):
 
       '''List all known downstream targets of {gene_name}.
       Organism: homo sapiens. Tissue: brain.
-      Use the following format: "stimulates: [gene names], inhibits: [gene names]" separated by spaces.
+      Use the following format: "stimulates: [gene names], inhibits: [gene names]" with the gene names separated by ';'.
       If there is no downstream target, answer "none". 
       Don't say anything else.'''
 
@@ -100,13 +101,24 @@ def supervisor_call(gene_name: str, response: str):
   )
 
 
-def supervisor_query_expander(gene_name: str, response: str, number_of_supervisions: int = 1):
-   if number_of_supervisions > 1:
-     new_response = supervisor_query_expander(gene_name, response, number_of_supervisions-1)
+def supervisor_query_expander(gene_name: str, response: str, max_number_of_supervisions: int = 40, lengths=None):
+   if lengths is None:
+       lengths = []
+   if max_number_of_supervisions > 1:
+     new_response, prev_response, exit_counter = supervisor_query_expander(gene_name, response, max_number_of_supervisions-1, lengths)
    else:
      new_response = response
+     prev_response = ""
+     exit_counter = 3 #it will actually be five, since after exit_counter is decreased, it is only checked in the next step, and on the first check the two responses are already the same
 
-   return check_format(
+   if exit_counter == 0:
+     print("exit counter reached zero")
+     return new_response, prev_response, exit_counter
+   if len(new_response) <= len(prev_response) and max_number_of_supervisions > 2:
+     exit_counter -= 1
+   else:
+     exit_counter = 3
+   final = check_format(
      input_string=supervisor_call(gene_name, new_response),
      on_wrong= lambda: check_format(
        input_string=supervisor_call(gene_name, new_response),
@@ -116,6 +128,8 @@ def supervisor_query_expander(gene_name: str, response: str, number_of_supervisi
        )
      )
    )
+   lengths.append(len(results_to_dictionary(final)))
+   return final, new_response, exit_counter
 
 
 def save_results(input_gene: str, interaction_dict: dict[str, int]):
@@ -130,7 +144,7 @@ def save_results(input_gene: str, interaction_dict: dict[str, int]):
 
 
 ##Checks saved gene data and adds new genes to the saves if the number_of_supervisions is at least 4
-def default_query_with_supervisions(gene: str, number_of_supervisions: int = 1):
+def default_query_with_supervisions(gene: str, max_number_of_supervisions: int = 1):
   from_json = False
   try:
     with open('output.json', 'r') as json_file:
@@ -144,18 +158,21 @@ def default_query_with_supervisions(gene: str, number_of_supervisions: int = 1):
     response = gene_query_with_format_check(gene)
 
   if not from_json:
-    result_dict = results_to_dictionary(supervisor_query_expander(gene, response, number_of_supervisions))
+    result_dict = results_to_dictionary(supervisor_query_expander(gene, response, max_number_of_supervisions)[0])
     save_results(gene, result_dict)
   return result_dict
 
-
-print(
-  get_response(
-    role = "news reporter",
-    prompt = "What is the current date?"
-  )
-)
-
+def tester(gene: str, max_supervisions: int = 20):
+  lengths = []
+  initial_response = default_gene_query(gene)
+  lengths.append(len(results_to_dictionary(initial_response)))
+  supervisor_query_expander(gene_name=gene, response=initial_response, max_number_of_supervisions=max_supervisions, lengths=lengths)
+  plt.plot(list(range(0, len(lengths))), lengths, marker='o')
+  plt.xlabel('Number of Supervisions')
+  plt.ylabel('Length of Result Dictionary')
+  plt.title(f'Effect of Number of Supervisions on Result Length for {gene}')
+  plt.grid(True)
+  plt.show()
 
 # def response_binder(resp1: str, resp2: str):
 #   resp1_list = resp1.replace(",","").replace("none", "").removeprefix("stimulates: ").split("inhibits: ")
