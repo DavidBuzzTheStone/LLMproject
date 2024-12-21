@@ -3,7 +3,7 @@ import json
 from matplotlib import pyplot as plt
 from openai import OpenAI, default_query
 
-from format_checker import check_format
+from format_checker import check_format, clean_string_from_unwanted_characters
 
 api_key = "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"
 client = OpenAI(api_key=api_key)
@@ -12,7 +12,7 @@ main_model = "chatgpt-4o-latest"
 
 def get_response(
         role: str,
-        prompt: str, model: str = "chatgpt-4o-latest", temperature: float = 0.05, max_tokens: int = 500, top_p: float = 1,):
+        prompt: str, model: str = "chatgpt-4o-latest", temperature: float = 0.05, max_tokens: int = 1000, top_p: float = 1, presence_penalty: float = 0.0, frequency_penalty: float = 0.0):
   response = client.chat.completions.create(
     model=model,
     messages=[
@@ -28,13 +28,13 @@ def get_response(
         temperature= temperature,
         max_tokens=max_tokens,
         top_p=top_p,
-        frequency_penalty=0,
-        presence_penalty=0
+        frequency_penalty=frequency_penalty,
+        presence_penalty=presence_penalty
     )
   return response.choices[0].message.content
 
 def default_gene_query(gene_name: str):
-  return get_response(
+  to_return = get_response(
     role="You are an expert in molecular biology and genomics of human brain",
     prompt = f"""
   List all known downstream targets of {gene_name}.
@@ -45,9 +45,11 @@ def default_gene_query(gene_name: str):
 """,
     model = main_model,
   )
+  print("def", to_return)
+  return to_return
 
 def gene_query_with_format_check(gene_name: str):
-  return check_format(
+  to_return = check_format(
     input_string=default_gene_query(gene_name),
     on_wrong=lambda: check_format(
       input_string=default_gene_query(gene_name),
@@ -57,6 +59,8 @@ def gene_query_with_format_check(gene_name: str):
       )
     )
   )
+  print("gqwfc", to_return)
+  return to_return
 
 def results_to_dictionary(results: str):
   print(results)
@@ -67,6 +71,9 @@ def results_to_dictionary(results: str):
     split_results = results.replace("; ", ';').split("inhibits:")
     activated_targets = split_results[0].strip().removeprefix("stimulates:").split(";")
     inhibited_targets = split_results[1].strip().split(";")
+
+    activated_targets = [i.strip() for i in activated_targets]
+    inhibited_targets = [i.strip() for i in inhibited_targets]
 
     for inhibited_target in inhibited_targets:
       if inhibited_target not in dictionary and inhibited_target != '' and inhibited_target.lower() != "none":
@@ -101,7 +108,7 @@ def supervisor_call(gene_name: str, response: str):
   )
 
 
-def supervisor_query_expander(gene_name: str, response: str, max_number_of_supervisions: int = 40, lengths=None):
+def supervisor_query_expander(gene_name: str, response: str, max_number_of_supervisions: int = 40, lengths=None, exit_after_no_change: bool = True):
    if lengths is None:
        lengths = []
    if max_number_of_supervisions > 1:
@@ -174,6 +181,8 @@ def tester(gene: str, max_supervisions: int = 20):
   plt.grid(True)
   plt.show()
 
+for gene in ["OLIG2", "SOX9"]:
+  tester(gene, 40)
 # def response_binder(resp1: str, resp2: str):
 #   resp1_list = resp1.replace(",","").replace("none", "").removeprefix("stimulates: ").split("inhibits: ")
 #   resp2_list = resp2.replace(",", "").replace("none", "").removeprefix("stimulates: ").split("inhibits: ")
@@ -217,31 +226,45 @@ def tester(gene: str, max_supervisions: int = 20):
 #
 #
 
-# def repeated_results_to_dictionary(results: str):
-#   if results == "none":
-#     return [], []
-#   else:
-#     split_results = clean_string_from_unwanted_characters(results).split("inhibits:")
-#     activated_targets = split_results[0].removeprefix("stimulates:").split(" ")
-#     inhibited_targets = split_results[1].split(" ")
-#   return activated_targets, inhibited_targets
-#
-#
-# def repeated_query(number_of_repeats: int, gene: str, query_func: callable(str)):
-#   stimulates = []
-#   inhibits = []
-#   dictionary = {}
-#   for _ in range(number_of_repeats):
-#
-#     new_activated, new_inhibited = repeated_results_to_dictionary(query_func(gene))
-#     stimulates += new_activated
-#     inhibits += new_inhibited
-#   stimulates = [x for x in stimulates if x != "none" and x != ""]
-#   inhibits = [x for x in inhibits if x != "none" and x != ""]
-#   all_genes = set(stimulates).union(set(inhibits))
-#   for gene in all_genes:
-#     value = (stimulates.count(gene) - inhibits.count(gene))/number_of_repeats
-#     dictionary[gene] = value
-#   return dictionary
+def repeated_results_to_dictionary(results: str):
+  if results == "none":
+    return [], []
+  else:
+    split_results = results.replace("; ", ';').split("inhibits:")
+    activated_targets = split_results[0].strip().removeprefix("stimulates:").split(";")
+    inhibited_targets = split_results[1].strip().split(";")
+
+    activated_targets = [i.strip() for i in activated_targets]
+    inhibited_targets = [i.strip() for i in inhibited_targets]
+  return activated_targets, inhibited_targets
+
+
+def repeated_query(number_of_repeats: int, gene: str, query_func: callable(str)):
+  stimulates = []
+  inhibits = []
+  dictionary = {}
+  for _ in range(number_of_repeats):
+
+    new_activated, new_inhibited = repeated_results_to_dictionary(
+      check_format(
+        query_func(gene),
+        lambda: check_format(
+          input_string=query_func(gene),
+          on_wrong = lambda: check_format(
+            input_string=query_func(gene),
+            on_wrong = None
+          )
+        )
+      )
+    )
+    stimulates += new_activated
+    inhibits += new_inhibited
+  stimulates = [x for x in stimulates if x != "none" and x != ""]
+  inhibits = [x for x in inhibits if x != "none" and x != ""]
+  all_genes = set(stimulates).union(set(inhibits))
+  for gene in all_genes:
+    value = (stimulates.count(gene) - inhibits.count(gene))/number_of_repeats
+    dictionary[gene] = value
+  return dictionary
 
 # A different approach would be simply combining all the responses into a list, or returning this list to ChatGPT to supervise it

@@ -209,10 +209,6 @@ def validator():
     plt.title(f'Comparison of {tf} Targets')
     plt.show()
 #
-input_genes_x = random.sample(sven_genes, 10)
-full_workflow(input_genes_x, 2)
-
-
 #Last date: October 21, 2023
 #Gene name synonyms
 
